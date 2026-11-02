@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PayPulse 3D | Salary Estimator</title>
+<meta name="description" content="Estimate a realistic annual compensation package by role, city, experience and skills, with a 3D visual, percentile curve and CTC breakdown.">
+<style>
+:root{--bg:#070a14;--card:#0e1428;--line:#1f2a4d;--txt:#e8ecff;--mute:#8b96c4;--a:#6df0ff;--b:#b388ff;--c:#ff7ad9}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1200px 600px at 80% -10%,#1b1450 0%,transparent 60%),var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.5}
+header{text-align:center;padding:36px 16px 8px}
+h1{margin:0;font-size:clamp(26px,5vw,44px);background:linear-gradient(90deg,var(--a),var(--b),var(--c));-webkit-background-clip:text;background-clip:text;color:transparent}
+header p{color:var(--mute);margin:6px 0 0}
+main{max-width:1100px;margin:0 auto;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:860px){main{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px}
+.steps{display:flex;gap:6px;margin-bottom:14px}
+.steps span{flex:1;height:5px;border-radius:4px;background:var(--line);transition:.3s}
+.steps span.on{background:linear-gradient(90deg,var(--a),var(--b))}
+h2{margin:0 0 12px;font-size:18px}
+label{display:block;font-size:13px;color:var(--mute);margin:12px 0 4px}
+select,input[type=range]{width:100%}
+select{background:#0a1022;color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:15px}
+input[type=range]{accent-color:var(--b)}
+.row{display:flex;justify-content:space-between;align-items:center}
+.val{color:var(--a);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.chip{border:1px solid var(--line);background:#0a1022;color:var(--txt);border-radius:999px;padding:7px 12px;font-size:13px;cursor:pointer;transition:.2s}
+.chip.on{background:linear-gradient(90deg,var(--a),var(--b));color:#06101f;border-color:transparent;font-weight:600}
+.nav{display:flex;gap:10px;margin-top:18px}
+button.btn{flex:1;border:0;border-radius:12px;padding:12px;font-size:15px;font-weight:600;cursor:pointer;color:#06101f;background:linear-gradient(90deg,var(--a),var(--b))}
+button.btn.ghost{background:transparent;color:var(--txt);border:1px solid var(--line)}
+.step{display:none}.step.show{display:block}
+.switch{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:14px}
+#stage{height:240px;border-radius:14px;background:radial-gradient(circle at 50% 50%,#1a1f4a,#0a1022);overflow:hidden;position:relative}
+#stage canvas{display:block;width:100%;height:100%}
+.hint{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:11px;color:var(--mute)}
+.big{font-size:clamp(34px,7vw,52px);font-weight:800;margin:10px 0 0;background:linear-gradient(90deg,var(--a),var(--c));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--mute);font-size:14px}
+.split{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+.split div{background:#0a1022;border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+.split b{display:block;font-size:17px;color:var(--a)}.split small{color:var(--mute)}
+canvas#bell{width:100%;height:150px}
+.bar{margin:8px 0}.bar .t{display:flex;justify-content:space-between;font-size:13px}
+.bar .tr{height:8px;background:#0a1022;border-radius:6px;overflow:hidden;margin-top:3px}
+.bar .f{height:100%;background:linear-gradient(90deg,var(--a),var(--b));width:0;transition:width .6s}
+.full{grid-column:1/-1}
+.note{font-size:12px;color:var(--mute);margin-top:10px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--a);padding:10px 16px;border-radius:10px;opacity:0;transition:.3s;pointer-events:none}
+.toast.show{opacity:1}
+footer{text-align:center;color:var(--mute);font-size:12px;padding:20px}
+</style>
+</head>
+<body>
+<header>
+  <h1>PayPulse 3D</h1>
+  <p>Know your market value before the next offer conversation</p>
+</header>
+<main>
+  <section class="card">
+    <div class="steps"><span class="on"></span><span></span><span></span></div>
+
+    <div class="step show" data-s="0">
+      <h2>1. Role and profile</h2>
+      <label>Target role</label><select id="role"></select>
+      <label>Location</label><select id="loc"></select>
+      <label class="row"><span>Experience</span><span class="val" id="expv">3 yrs</span></label>
+      <input type="range" id="exp" min="0" max="25" value="3">
+      <label>Highest qualification</label>
+      <select id="edu">
+        <option value="0.94">High school / Diploma</option>
+        <option value="1" selected>Bachelor's degree</option>
+        <option value="1.08">Master's / MBA</option>
+        <option value="1.12">PhD</option>
+      </select>
+    </div>
+
+    <div class="step" data-s="1">
+      <h2>2. Company and work model</h2>
+      <label>Company tier</label>
+      <select id="tier">
+        <option value="0.82">Early startup (seed)</option>
+        <option value="1" selected>Growth startup (Series A/B)</option>
+        <option value="1.15">Mid-size company</option>
+        <option value="1.3">Large enterprise / MNC</option>
+        <option value="1.55">Top-tier tech</option>
+      </select>
+      <div class="switch"><input type="checkbox" id="remote"><label for="remote" style="margin:0;color:var(--txt)">Fully remote role</label></div>
+      <label class="row"><span>Negotiation leverage</span><span class="val" id="negv">6 / 10</span></label>
+      <input type="range" id="neg" min="1" max="10" value="6">
+      <div class="note">1 = single entry offer, 10 = multiple competing offers.</div>
+    </div>
+
+    <div class="step" data-s="2">
+      <h2>3. Skills in demand</h2>
+      <div class="sub">Pick what you are genuinely strong at. Each adds a premium.</div>
+      <div class="chips" id="skills"></div>
+    </div>
+
+    <div class="nav">
+      <button class="btn ghost" id="prev">Back</button>
+      <button class="btn" id="next">Next</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div id="stage"><div class="hint">Drag to rotate</div></div>
+    <div class="sub" style="margin-top:12px">Estimated annual compensation</div>
+    <div class="big" id="total">-</div>
+    <div class="sub" id="label">-</div>
+    <div class="split">
+      <div><b id="base">-</b><small>Base</small></div>
+      <div><b id="bonus">-</b><small>Bonus</small></div>
+      <div><b id="stock">-</b><small>Stock / other</small></div>
+    </div>
+  </section>
+
+  <section class="card full">
+    <h2>Where you sit in the market</h2>
+    <canvas id="bell"></canvas>
+    <div class="sub" id="pct"></div>
+    <h2 style="margin-top:18px">Indicative range by source</h2>
+    <div id="bench"></div>
+    <div class="note">All numbers come from a simple built-in model with rounded assumptions. They are indicative and not live data from any job site. Estimates do not vary by gender.</div>
+    <div class="actions">
+      <button class="btn" id="share" style="flex:0 0 auto;padding:12px 20px">Copy shareable link</button>
+      <button class="btn ghost" id="print" style="flex:0 0 auto;padding:12px 20px">Save as PDF</button>
+    </div>
+  </section>
+</main>
+<footer>PayPulse 3D. Built as a demo estimator.</footer>
+<div class="toast" id="toast">Link copied</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// base = typical annual pay in INR lakh for 3 years experience, Bachelor's, growth startup, Bengaluru-level market
+const ROLES={
+ "Full-stack Developer":16,"Backend Engineer":18,"Frontend Engineer":15,"Mobile Developer":16,"DevOps / SRE":19,
+ "Data Analyst":10,"Data Scientist":20,"ML / AI Engineer":26,"Data Engineer":20,"Cloud Architect":28,
+ "Cybersecurity Analyst":15,"QA / Test Engineer":9,"Product Manager":26,"Project Manager":16,"Business Analyst":11,
+ "UI/UX Designer":12,"Graphic Designer":7,"Digital Marketer":8,"Content Writer":6,"Sales Executive":8,
+ "Financial Analyst":10,"Investment Analyst":14,"Chartered Accountant":14,"HR Generalist":7,"Operations Manager":12,
+ "Management Consultant":22,"Mechanical Engineer":7,"Electrical Engineer":8,"Semiconductor / VLSI Engineer":18,"Renewable Energy Engineer":10
+};
+// factor vs Bengaluru, currency symbol, INR per unit, format style
+const LOCS={
+ "Bengaluru, India":[1,"₹",1,"in"],"Mumbai, India":[1,"₹",1,"in"],"Delhi NCR, India":[0.97,"₹",1,"in"],"Hyderabad, India":[0.95,"₹",1,"in"],
+ "Pune, India":[0.9,"₹",1,"in"],"Chennai, India":[0.88,"₹",1,"in"],"Chandigarh / Tricity, India":[0.78,"₹",1,"in"],"Tier-3 city, India":[0.65,"₹",1,"in"],
+ "San Francisco, USA":[5.2,"$",84,"us"],"New York, USA":[4.8,"$",84,"us"],"London, UK":[3.4,"£",107,"us"],"Dubai, UAE":[2.6,"AED ",23,"us"],"Singapore":[3.4,"S$ ",63,"us"]
+};
+const SKILLS={"Generative AI / LLMs":.12,"Machine Learning":.09,"Cloud (AWS/Azure/GCP)":.07,"Kubernetes / DevOps":.06,"Cybersecurity":.07,
+ "Data Engineering":.06,"System Design":.06,"Rust / Go":.05,"Blockchain":.04,"Embedded / IoT":.04,"Product Strategy":.05,"Leadership":.06,"Green Energy Tech":.05,"Financial Modeling":.05};
+
+const $=id=>document.getElementById(id);
+const roleEl=$("role"),locEl=$("loc");
+Object.keys(ROLES).forEach(r=>roleEl.add(new Option(r,r)));
+Object.keys(LOCS).forEach(l=>locEl.add(new Option(l,l)));
+const picked=new Set();
+Object.keys(SKILLS).forEach(s=>{
+  const c=document.createElement("button");c.type="button";c.className="chip";c.textContent=s;
+  c.onclick=()=>{picked.has(s)?picked.delete(s):picked.add(s);c.classList.toggle("on");calc()};
+  $("skills").appendChild(c);
+});
+
+function fmt(inr){
+  const [,sym,rate,style]=LOCS[locEl.value];
+  const v=inr/rate;
+  if(style==="in"){return v>=100?sym+(v/100).toFixed(2)+" Cr":sym+v.toFixed(1)+" L"}
+  return v>=1e5?sym+(v/1e5*100/100*100/100).toFixed(0)+"k":sym+v.toFixed(0)
+}
+// for non-INR show in thousands
+function fmtLoc(lakh){
+  const [,sym,rate,style]=LOCS[locEl.value];
+  const inr=lakh*1e5;
+  if(style==="in"){return lakh>=100?sym+(lakh/100).toFixed(2)+" Cr":sym+lakh.toFixed(1)+" L"}
+  return sym+Math.round(inr/rate/1000)+"k";
+}
+let model={};
+function calc(){
+  const exp=+$("exp").value,neg=+$("neg").value;
+  $("expv").textContent=exp===0?"Fresher":exp+" yrs";$("negv").textContent=neg+" / 10";
+  const [lf]=LOCS[locEl.value];
+  const mult=0.4+0.43*Math.log(1+exp);
+  let sk=0;picked.forEach(s=>sk+=SKILLS[s]);sk=Math.min(sk,0.4);
+  let median=ROLES[roleEl.value]*mult*lf*+$("edu").value*+$("tier").value*(1+sk)*($("remote").checked?0.96:1);
+  const est=median*(0.92+0.016*neg);
+  const tier=+$("tier").value;
+  const bonusShare=0.08+(exp>6?0.03:0);
+  const stockShare=tier>=1.55?0.18:tier>=1.3?0.08:tier<=0.82?0.04:0.07;
+  const base=est*(1-bonusShare-stockShare),bonus=est*bonusShare,stock=est*stockShare;
+  model={median,est,base,bonus,stock};
+  $("total").textContent=fmtLoc(est);
+  const lvl=exp<2?"Entry-level":exp<6?"Mid-level":exp<11?"Senior":"Staff / Lead";
+  $("label").textContent=lvl+" • "+roleEl.value+" • "+locEl.value;
+  $("base").textContent=fmtLoc(base);$("bonus").textContent=fmtLoc(bonus);$("stock").textContent=fmtLoc(stock);
+  const z=(est-median)/(median*0.16);
+  const pct=Math.round(100*(0.5*(1+erf(z/Math.SQRT2))));
+  $("pct").textContent="This estimate sits around the "+pct+"th percentile of the modeled market range for this profile.";
+  bell(median,est);bench(est);scene.update(est,median);
+  history.replaceState(null,"","#"+encodeURIComponent(JSON.stringify({r:roleEl.value,l:locEl.value,e:exp,n:neg,q:$("edu").value,t:$("tier").value,m:$("remote").checked,s:[...picked]})));
+}
+function erf(x){const t=1/(1+0.3275911*Math.abs(x));const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return x>=0?y:-y}
+
+function bell(median,est){
+  const c=$("bell"),dpr=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;
+  c.width=w*dpr;c.height=h*dpr;const g=c.getContext("2d");g.scale(dpr,dpr);g.clearRect(0,0,w,h);
+  const sd=median*0.16,lo=median-3.2*sd,hi=median+3.2*sd,X=v=>(v-lo)/(hi-lo)*(w-20)+10;
+  const Y=v=>h-24-Math.exp(-0.5*((v-median)/sd)**2)*(h-50);
+  const grad=g.createLinearGradient(0,0,w,0);grad.addColorStop(0,"#6df0ff");grad.addColorStop(1,"#b388ff");
+  g.beginPath();g.moveTo(X(lo),h-24);
+  for(let v=lo;v<=hi;v+=sd/20)g.lineTo(X(v),Y(v));
+  g.lineTo(X(hi),h-24);g.closePath();g.fillStyle="rgba(109,240,255,.12)";g.fill();
+  g.beginPath();for(let v=lo;v<=hi;v+=sd/20){v===lo?g.moveTo(X(v),Y(v)):g.lineTo(X(v),Y(v))}
+  g.strokeStyle=grad;g.lineWidth=2.5;g.stroke();
+  const ex=X(Math.min(Math.max(est,lo),hi));
+  g.strokeStyle="#ff7ad9";g.lineWidth=2;g.setLineDash([5,4]);g.beginPath();g.moveTo(ex,10);g.lineTo(ex,h-24);g.stroke();g.setLineDash([]);
+  g.fillStyle="#ff7ad9";g.beginPath();g.arc(ex,Y(est),5,0,7);g.fill();
+  g.fillStyle="#8b96c4";g.font="11px system-ui";g.textAlign="center";
+  [[median-2*sd,"P5"],[median-sd,"P16"],[median,"P50"],[median+sd,"P84"],[median+2*sd,"P95"]].forEach(([v,t])=>g.fillText(t+" "+fmtLoc(v),X(v),h-6));
+}
+function bench(est){
+  const src=[["LinkedIn-style",1.04],["Glassdoor-style",0.97],["Indeed-style",0.93],["Shine-style",0.88]];
+  $("bench").innerHTML=src.map(([n,f])=>`<div class="bar"><div class="t"><span>${n}</span><span>${fmtLoc(est*f*0.93)} to ${fmtLoc(est*f*1.07)}</span></div><div class="tr"><div class="f" style="width:${Math.round(f*70)}%"></div></div></div>`).join("");
+}
+
+// 3D scene
+const scene=(function(){
+  const box=$("stage");
+  if(!window.THREE){box.insertAdjacentHTML("afterbegin","<div style='padding:20px;color:#8b96c4'>3D view unavailable offline.</div>");return{update(){}}}
+  const r=new THREE.WebGLRenderer({antialias:true,alpha:true});r.setPixelRatio(Math.min(devicePixelRatio,2));box.prepend(r.domElement);
+  const s=new THREE.Scene(),cam=new THREE.PerspectiveCamera(45,1,.1,100);cam.position.z=4.2;
+  const core=new THREE.Mesh(new THREE.IcosahedronGeometry(1,1),new THREE.MeshStandardMaterial({color:0x6d5cff,metalness:.6,roughness:.25,flatShading:true}));
+  const wire=new THREE.Mesh(new THREE.IcosahedronGeometry(1.25,1),new THREE.MeshBasicMaterial({color:0x6df0ff,wireframe:true,transparent:true,opacity:.35}));
+  s.add(core,wire);
+  const l1=new THREE.PointLight(0xff7ad9,1.4);l1.position.set(3,3,3);const l2=new THREE.PointLight(0x6df0ff,1.2);l2.position.set(-3,-2,2);
+  s.add(l1,l2,new THREE.AmbientLight(0xffffff,.35));
+  let tx=0,ty=0,drag=false,px=0,py=0,target=1,cur=1;
+  function size(){const w=box.clientWidth,h=box.clientHeight;r.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix()}
+  addEventListener("resize",size);size();
+  const el=r.domElement;
+  el.addEventListener("pointerdown",e=>{drag=true;px=e.clientX;py=e.clientY});
+  addEventListener("pointerup",()=>drag=false);
+  addEventListener("pointermove",e=>{if(drag){ty+=(e.clientX-px)*.01;tx+=(e.clientY-py)*.01;px=e.clientX;py=e.clientY}});
+  (function loop(){requestAnimationFrame(loop);if(!drag)ty+=.006;
+    cur+=(target-cur)*.06;core.scale.setScalar(cur);wire.scale.setScalar(cur);
+    core.rotation.set(tx,ty,0);wire.rotation.set(-tx*.6,-ty*.6,0);r.render(s,cam)})();
+  return{update(est,median){target=Math.max(.7,Math.min(1.3,.7+est/Math.max(median,1)*0.3+Math.log(1+est)/25));
+    core.material.color.setHSL(0.68-Math.min(est/120,1)*0.18,.8,.55)}}
+})();
+
+// stepper
+let step=0;
+function show(n){step=n;document.querySelectorAll(".step").forEach(e=>e.classList.toggle("show",+e.dataset.s===n));
+  document.querySelectorAll(".steps span").forEach((e,i)=>e.classList.toggle("on",i<=n));
+  $("prev").style.visibility=n?"visible":"hidden";$("next").textContent=n===2?"Recalculate":"Next"}
+$("next").onclick=()=>{if(step<2)show(step+1);calc()};
+$("prev").onclick=()=>show(Math.max(0,step-1));
+["role","loc","exp","edu","tier","remote","neg"].forEach(i=>$(i).addEventListener("input",calc));
+$("share").onclick=()=>{navigator.clipboard.writeText(location.href).then(()=>{$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),1600)}).catch(()=>prompt("Copy this link",location.href))};
+$("print").onclick=()=>print();
+
+// restore from link
+try{const h=JSON.parse(decodeURIComponent(location.hash.slice(1)));
+ roleEl.value=h.r;locEl.value=h.l;$("exp").value=h.e;$("neg").value=h.n;$("edu").value=h.q;$("tier").value=h.t;$("remote").checked=h.m;
+ (h.s||[]).forEach(s=>{picked.add(s);[...document.querySelectorAll(".chip")].find(c=>c.textContent===s)?.classList.add("on")})}catch(e){}
+show(0);calc();
+addEventListener("resize",()=>bell(model.median,model.est));
+</script>
+</body>
+</html>
